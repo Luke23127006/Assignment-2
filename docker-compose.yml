@@ -8,6 +8,37 @@ services:
     networks:
       - app_net
 
+  db_master:
+    image: mysql:8
+    container_name: db_master
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: appdb
+    volumes:
+      # Custom MySQL configuration (read-only so the container cannot alter it)
+      - ./db/master/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      # Init script — MySQL runs every *.sql file in this directory on first start
+      - ./db/master/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # Named volume for persistent data
+      - db_master_data:/var/lib/mysql
+    # Port 3306 is intentionally NOT published to the host.
+    # Containers on app_net reach this service via the hostname "db_master".
+    networks:
+      - app_net
+
+  db_gui:
+    image: adminer
+    container_name: db_gui
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    networks:
+      - app_net
+
+volumes:
+  db_master_data:
+
 networks:
   app_net:
     driver: bridge
