@@ -12,18 +12,50 @@ services:
     image: mysql:8
     container_name: db_master
     restart: unless-stopped
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-do-db=appdb
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --log-replica-updates=ON
     environment:
       MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: appdb
     volumes:
-      # Custom MySQL configuration (read-only so the container cannot alter it)
-      - ./db/master/my.cnf:/etc/mysql/conf.d/my.cnf:ro
-      # Init script — MySQL runs every *.sql file in this directory on first start
       - ./db/master/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      # Named volume for persistent data
       - db_master_data:/var/lib/mysql
-    # Port 3306 is intentionally NOT published to the host.
-    # Containers on app_net reach this service via the hostname "db_master".
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  db_slave:
+    image: mysql:8
+    container_name: db_slave
+    restart: unless-stopped
+    command:
+      - --server-id=2
+      - --relay-log=mysql-relay-bin
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --log-replica-updates=ON
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --read-only=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - ./db/slave/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - db_slave_data:/var/lib/mysql
+    depends_on:
+      db_master:
+        condition: service_healthy
     networks:
       - app_net
 
@@ -38,6 +70,7 @@ services:
 
 volumes:
   db_master_data:
+  db_slave_data:
 
 networks:
   app_net:
