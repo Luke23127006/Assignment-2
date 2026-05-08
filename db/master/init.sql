@@ -15,6 +15,6 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- Dedicated replication user
 -- '%' allows the slave to connect from any container IP inside app_net
-CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED WITH mysql_native_password BY 'replicator_password';
+CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED BY 'replicator_password';
 GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'%';
 FLUSH PRIVILEGES;
