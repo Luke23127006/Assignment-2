@@ -1,0 +1,63 @@
+@startuml architecture_diagram
+skinparam componentStyle rectangle
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam ComponentBackgroundColor #f5f5f5
+skinparam ComponentBorderColor #999999
+skinparam NoteBackgroundColor #fffde7
+skinparam NoteBorderColor #f9a825
+
+title Scalable Web Application — System Architecture
+
+actor Client
+
+package "Host Machine" {
+    component "[Nginx]\nLoad Balancer\n(Port 8080)" as LB
+}
+
+package "app_net (Docker Bridge Network)" {
+
+    package "API Layer" {
+        component "[Node.js]\nAPI Node 1\nSERVER_ID=Node_1\n(Port 3000)" as API1
+        component "[Node.js]\nAPI Node 2\nSERVER_ID=Node_2\n(Port 3000)" as API2
+    }
+
+    package "Database Cluster" {
+        database "[MySQL 8]\nMaster\nserver-id=1\nRead + Write" as MASTER
+        database "[MySQL 8]\nSlave\nserver-id=2\nRead Only" as SLAVE
+    }
+}
+
+' --- Traffic flow ---
+Client       --> LB      : HTTP Request\n(Port 8080)
+LB           --> API1    : Round Robin
+LB           --> API2    : Round Robin
+
+' --- Read/Write Splitting ---
+API1         --> MASTER  : Write\n(POST /products)
+API2         --> MASTER  : Write\n(POST /products)
+API1         --> SLAVE   : Read\n(GET /products)
+API2         --> SLAVE   : Read\n(GET /products)
+
+' --- Replication ---
+MASTER       --> SLAVE   : Replication\n(GTID / Binlog)
+
+note right of LB
+  Round Robin load balancing.
+  Fast failover: 2s timeout on
+  connect / send / read.
+end note
+
+note right of MASTER
+  Binary log enabled.
+  GTID mode ON.
+  Acts as single write target.
+end note
+
+note right of SLAVE
+  read_only = ON.
+  Replicates via GTID.
+  Serves all SELECT queries.
+end note
+
+@enduml
