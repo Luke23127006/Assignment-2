@@ -1,10 +1,35 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
+  api_node_1:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      SERVER_ID: Node_1
+      DB_MASTER_HOST: db_master
+      DB_SLAVE_HOST: db_slave
+      DB_USER: root
+      DB_PASSWORD: root_password
+      DB_NAME: appdb
+    depends_on:
+      db_master:
+        condition: service_healthy
+    networks:
+      - app_net
+
+  api_node_2:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      SERVER_ID: Node_2
+      DB_MASTER_HOST: db_master
+      DB_SLAVE_HOST: db_slave
+      DB_USER: root
+      DB_PASSWORD: root_password
+      DB_NAME: appdb
+    depends_on:
+      db_master:
+        condition: service_healthy
     networks:
       - app_net
 
